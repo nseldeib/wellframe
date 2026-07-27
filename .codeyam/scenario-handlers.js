@@ -1,5 +1,5 @@
 // codeyam-generated — DO NOT EDIT.
-// codeyam-editor: 0.1.7  source-sha256: 373e969264a37e7f545ffb53346907f15413f23320ef5c810f86ba972994ee2a
+// codeyam-editor: 0.1.7  source-sha256: 5e85a7c75cde96993adfc92e3bf9a570fd836af9fbb2dbfb2651da661d36d12d
 const { createIssue } = require("./scenario-issues");
 
 // Known substrings that mean the app refused to initialize because it was loaded
@@ -41,44 +41,90 @@ function insecureContextAdvisory(text) {
   });
 }
 
+// The pathname suffix identifying the editor's OWN terminal socket. Matched by
+// suffix rather than full URL because the terminal is proxied through varying
+// origins (localhost, a container IP, a tunnel host) and varying ports.
+const TERMINAL_SOCKET_PATH_SUFFIX = "/ws/terminal";
+
 // `allowWebSocket` keeps the real `WebSocket` for scenarios that script a
 // `/ws/terminal` transcript (or a WS stream): those captures NEED the socket to
 // connect so the server replays the scripted agent state into the frame. The
-// stub below exists to silence the live terminal's reconnect loop on EVERY
-// OTHER capture (a component that opens `/ws/terminal` with no scripted
+// interception below exists to silence the live terminal's reconnect loop on
+// EVERY OTHER capture (a component that opens `/ws/terminal` with no scripted
 // playback would otherwise screenshot the "Reconnecting…" overlay); for a
 // scripted scenario the server holds the socket open after replay, so there is
 // no reconnect spam to silence and stubbing only hides the very state we are
 // trying to capture. The flag is computed by the capture orchestrator from the
 // scenario's `mocks.transcripts` / `mocks.streams` — see
 // `scenarioScriptsLiveSocket` in scenario-check.js.
+//
+// The interception is SCOPED BY URL and never blanket-replaces the global
+// constructor. A dead global `WebSocket` also kills the framework's HMR socket,
+// and on a dev-mode client bootstrap that runs through that socket (validated on
+// Next.js 16 + turbopack) React then never hydrates in the capture browser —
+// silently, with no console error. Every interactive capture of such an app
+// reads as inert: clicks land on un-hydrated SSR markup and `interactionEffect`
+// comes back `none`/`unhydrated`. Letting HMR connect costs nothing in capture
+// noise, because `handleConsoleMessage` below already drops
+// "WebSocket connection to" errors.
 function getInitScript(allowWebSocket = false) {
   const webSocketStub = allowWebSocket
     ? ""
     : `
-    // Stub WebSocket during capture to prevent terminal reconnection spam.
-    window.WebSocket = class StubWebSocket {
-      static CONNECTING = 0;
-      static OPEN = 1;
-      static CLOSING = 2;
-      static CLOSED = 3;
-      readyState = 3;
-      onopen = null;
-      onclose = null;
-      onerror = null;
-      onmessage = null;
-      send() {}
-      close() {}
-      addEventListener() {}
-      removeEventListener() {}
-      dispatchEvent() { return false; }
-      constructor() {
-        setTimeout(() => {
-          if (this.onerror) this.onerror(new Event("error"));
-          if (this.onclose) this.onclose(new CloseEvent("close"));
-        }, 0);
+    // Intercept ONLY the editor's own terminal socket during capture, to
+    // prevent terminal reconnection spam. Every other URL — notably the
+    // framework's HMR socket, which dev-mode hydration depends on — gets the
+    // real WebSocket.
+    (() => {
+      const RealWebSocket = window.WebSocket;
+      if (!RealWebSocket) return;
+      class StubWebSocket {
+        static CONNECTING = 0;
+        static OPEN = 1;
+        static CLOSING = 2;
+        static CLOSED = 3;
+        readyState = 3;
+        url = "";
+        onopen = null;
+        onclose = null;
+        onerror = null;
+        onmessage = null;
+        send() {}
+        close() {}
+        addEventListener() {}
+        removeEventListener() {}
+        dispatchEvent() { return false; }
+        constructor(url) {
+          this.url = String(url);
+          setTimeout(() => {
+            if (this.onerror) this.onerror(new Event("error"));
+            if (this.onclose) this.onclose(new CloseEvent("close"));
+          }, 0);
+        }
       }
-    };`;
+      const isTerminalSocket = (url) => {
+        const raw = String(url);
+        try {
+          return new URL(raw, window.location.href).pathname.endsWith(
+            ${JSON.stringify(TERMINAL_SOCKET_PATH_SUFFIX)}
+          );
+        } catch (_) {
+          return raw.includes(${JSON.stringify(TERMINAL_SOCKET_PATH_SUFFIX)});
+        }
+      };
+      function CodeyamWebSocket(url, protocols) {
+        if (isTerminalSocket(url)) return new StubWebSocket(url);
+        return protocols === undefined
+          ? new RealWebSocket(url)
+          : new RealWebSocket(url, protocols);
+      }
+      CodeyamWebSocket.prototype = RealWebSocket.prototype;
+      CodeyamWebSocket.CONNECTING = 0;
+      CodeyamWebSocket.OPEN = 1;
+      CodeyamWebSocket.CLOSING = 2;
+      CodeyamWebSocket.CLOSED = 3;
+      window.WebSocket = CodeyamWebSocket;
+    })();`;
   return `
     window.__codeyamUnhandledRejections = [];
     window.addEventListener("unhandledrejection", (event) => {

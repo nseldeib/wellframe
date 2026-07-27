@@ -1,5 +1,5 @@
 // codeyam-generated — DO NOT EDIT.
-// codeyam-editor: 0.1.7  source-sha256: 0eb207464481cbfca8f724d6f30116e96b30a40251d5b172f8d8460fe79cea37
+// codeyam-editor: 0.1.7  source-sha256: 48342371cbd9448e9b9d1914c27de8f1d32f3aa4561ef4136ea6f04600347faf
 const {
   hasLoadingMarkers,
   shouldStopWaitingForImages,
@@ -338,6 +338,110 @@ async function forceFinalVisualState(target) {
   });
 }
 
+// Center the isolated-component wrapper in the viewport before the shot.
+//
+// The capture pipeline always shoots the full viewport (`page.screenshot({
+// fullPage: false })`) and never an element clip, so an isolation page that
+// does not center its own component strands it in the top-left corner of every
+// frame. Next.js does this in its isolation layout and the query-param stacks
+// do it in `.codeyam/harness/isolate.tsx`, but the server-rendered scaffolds
+// historically did not — and neither do pages hand-authored before that was
+// fixed. This pass closes the gap at capture time, for any stack.
+//
+// It MEASURES rather than assumes: a wrapper that is already centered is left
+// alone, so pages that already do the right thing are byte-identical. The
+// `#codeyam-capture` marker (the cross-stack isolation convention; expo emits
+// it via `nativeID`) is the gate, so an ordinary route capture is never
+// touched. Centering is applied to `<body>` and to each ancestor strictly
+// between body and the wrapper — never to the wrapper itself, which frequently
+// carries the component's own padding/background and must keep its own box.
+// Each axis independently falls back to `flex-start` when the wrapper overflows
+// the viewport, so an oversized component loses its bottom/right edge rather
+// than being clipped symmetrically out of its top/left one.
+//
+// Idempotent (a single injected style id), best-effort, and returns a small
+// result object describing what it did.
+async function centerCaptureWrapper(target) {
+  return target.evaluate(() => {
+    const STYLE_ID = "__codeyam_center_capture";
+    const ANCESTOR_CLASS = "__codeyam-center-ancestor";
+    // Subpixel layout and fractional scrollbar widths make exact gap equality
+    // unreliable; a couple of px of slop keeps already-centered pages on the
+    // no-op branch.
+    const TOLERANCE_PX = 2;
+
+    if (typeof document.getElementById !== "function") {
+      return { applied: false, reason: "no-dom" };
+    }
+    if (document.getElementById(STYLE_ID)) {
+      return { applied: false, reason: "already-applied" };
+    }
+    const wrapper = document.getElementById("codeyam-capture");
+    if (!wrapper || typeof wrapper.getBoundingClientRect !== "function") {
+      return { applied: false, reason: "no-capture-marker" };
+    }
+
+    const rect = wrapper.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    const leftGap = rect.left;
+    const rightGap = viewportWidth - rect.right;
+    const topGap = rect.top;
+    const bottomGap = viewportHeight - rect.bottom;
+
+    const fitsHorizontally = rect.width <= viewportWidth;
+    const fitsVertically = rect.height <= viewportHeight;
+    const centeredHorizontally =
+      fitsHorizontally && Math.abs(leftGap - rightGap) <= TOLERANCE_PX;
+    const centeredVertically =
+      fitsVertically && Math.abs(topGap - bottomGap) <= TOLERANCE_PX;
+
+    if (centeredHorizontally && centeredVertically) {
+      return { applied: false, reason: "already-centered" };
+    }
+
+    const horizontal = fitsHorizontally ? "center" : "flex-start";
+    const vertical = fitsVertically ? "center" : "flex-start";
+
+    // Stamp the ancestor chain so the injected rule targets exactly the
+    // elements between <body> and the wrapper and cannot leak elsewhere.
+    let node = wrapper.parentElement;
+    while (node && node !== document.body) {
+      if (node.classList && typeof node.classList.add === "function") {
+        node.classList.add(ANCESTOR_CLASS);
+      }
+      node = node.parentElement;
+    }
+
+    if (typeof document.createElement !== "function") {
+      return { applied: false, reason: "no-dom" };
+    }
+    const style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent =
+      "body, ." +
+      ANCESTOR_CLASS +
+      " {" +
+      "margin: 0;" +
+      "min-height: 100vh;" +
+      "display: flex;" +
+      "align-items: " +
+      vertical +
+      ";" +
+      "justify-content: " +
+      horizontal +
+      ";" +
+      "}";
+    const head = document.head || document.documentElement;
+    if (!head || typeof head.appendChild !== "function") {
+      return { applied: false, reason: "no-dom" };
+    }
+    head.appendChild(style);
+    return { applied: true, horizontal, vertical };
+  });
+}
+
 async function collectImageStates(target) {
   return target.evaluate(() =>
     Array.from(document.images || []).map((img) => ({
@@ -577,9 +681,31 @@ async function loadScenarioInIframe(
     // and the nested scenario iframe inherits it (the Sveltia-class fix). The
     // inner iframe `src` is still `url`, so the document-response probe above is
     // unchanged.
-    await page.goto(buildHarnessUrl(resolvedHarnessOrigin, url, background), {
+    const harnessUrl = buildHarnessUrl(resolvedHarnessOrigin, url, background);
+    const harnessResponse = await page.goto(harnessUrl, {
       waitUntil: "domcontentloaded",
     });
+    // Fail loudly on a fail-closed harness-auth rejection BEFORE the blind 30s
+    // `#scenario-frame` wait below. On a non-loopback (0.0.0.0 / cloud) bind the
+    // harness control-API route is session-token-gated; a generated
+    // `.codeyam/capture.js` (or an editor binary) that predates the `cy_session`
+    // cookie injection navigates without a token -> the server refuses the
+    // request with 401 -> the harness document never renders -> every component
+    // scenario times out on `#scenario-frame` with a generic Playwright error
+    // that hides the real cause. Surfacing the 401 here turns that blind timeout
+    // into a one-line root cause on the very first failing capture, naming both
+    // fixes. (Route/page scenarios navigate top-level to the un-gated app proxy,
+    // so they never hit this path.)
+    if (harnessResponse && harnessResponse.status() === 401) {
+      throw new Error(
+        `Capture harness route ${harnessUrl} returned 401 (fail-closed ` +
+          `session-token auth on a non-loopback bind). The capture script did not ` +
+          `send the \`cy_session\` token — most often a generated ` +
+          `\`.codeyam/capture.js\` (or an editor binary) that predates session-token ` +
+          `injection. Fixes: refresh the editor binary on this VM, or set ` +
+          `\`CODEYAM_INSECURE_BIND=1\` and restart the editor.`,
+      );
+    }
   } else {
     // Degraded fallback: no resolvable harness origin (server-state missing), so
     // use the legacy in-page harness. The top-level document is then
@@ -1004,6 +1130,7 @@ module.exports = {
   scrollThroughDocument,
   collectVisibleTextLength,
   forceFinalVisualState,
+  centerCaptureWrapper,
   collectImageStates,
   waitForImagesSettled,
   waitForAnimationsSettled,

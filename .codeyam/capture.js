@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // codeyam-generated — DO NOT EDIT.
-// codeyam-editor: 0.1.7  source-sha256: 16b4a7ea96e454ea770680ab27564adfac6d7cc200b703cc8b00d02b7d33b6c5
+// codeyam-editor: 0.1.7  source-sha256: 4fe4b359c961df71859167234ae09e1151243a35bb377dae755e650555be2d3e
 
 // Render environment (colorScheme, deviceScaleFactor, userAgent, locale,
 // timezoneId, reduceMotion, forcedColors) is read from config when present
@@ -178,10 +178,82 @@ const {
   scrollThroughDocument,
   collectVisibleTextLength,
   forceFinalVisualState,
+  centerCaptureWrapper,
   performInteraction,
   waitForPredicate,
   performInteractionSequence,
 } = require("./scenario-playwright");
+
+// Name of the cookie the editor's control-API accepts the session token in —
+// must match `SESSION_COOKIE` in crates/control-api/src/origin_guard.rs. On a
+// non-loopback (cloud) bind the control-API requires this token on the harness
+// route (`/__codeyam_harness`); without it the top-level harness navigation 401s
+// and `#scenario-frame` never attaches, so EVERY capture times out. The browser
+// UI carries this cookie automatically; the headless capturer does not, so we
+// inject it here from the on-box 0600 token file.
+const SESSION_COOKIE = "cy_session";
+
+// Build the Playwright cookie array that authenticates the capture context to
+// the editor's token-gated control-API. Reads the on-box `.codeyam/session-token`
+// (0600) and scopes a `cy_session` cookie to `localhost` (localhost cookies are
+// port-agnostic, so the same cookie covers the harness origin on the control
+// port and any `/api` call on the app-proxy port). Returns `[]` — a no-op — when
+// there is no token file (a loopback bind that never persisted one) or no
+// resolvable harness origin, so a laptop capture is completely unaffected.
+// `deps` is injectable so the builder is unit-testable without disk.
+function buildSessionTokenCookies({
+  readTokenFile = () => {
+    const p = path.join(process.cwd(), ".codeyam", "session-token");
+    return fs.existsSync(p) ? fs.readFileSync(p, "utf8").trim() : null;
+  },
+  harnessOrigin = resolveHarnessOrigin(),
+} = {}) {
+  try {
+    const token = readTokenFile();
+    if (!token || !harnessOrigin) return [];
+    return [
+      {
+        name: SESSION_COOKIE,
+        value: token,
+        domain: "localhost",
+        path: "/",
+        httpOnly: true,
+        sameSite: "Lax",
+      },
+    ];
+  } catch (_) {
+    // A missing/unreadable token file must never break capture on a loopback
+    // bind where the token isn't required anyway — degrade to no cookie.
+    return [];
+  }
+}
+
+// True when a non-empty on-box `.codeyam/session-token` exists (the same
+// 0600 file `buildSessionTokenCookies` reads). Used by the capability-skew
+// guard to tell "no token, loopback bind, nothing to inject" (fine) apart from
+// "a token exists but the capture produced no cookie" (a stale capture script
+// heading into a guaranteed 401). Never throws — an unreadable file reports
+// absent, degrading to today's behavior.
+function onBoxSessionTokenExists() {
+  try {
+    const p = path.join(process.cwd(), ".codeyam", "session-token");
+    return fs.existsSync(p) && fs.readFileSync(p, "utf8").trim().length > 0;
+  } catch (_) {
+    return false;
+  }
+}
+
+// Pure predicate behind the capability-skew guard: true when the capture WILL
+// use the token-gated harness route (an origin resolved) yet produced NO
+// `cy_session` cookie despite an on-box token existing — the signature of a
+// generated `.codeyam/capture.js` stale relative to the harness route, heading
+// into a guaranteed 401. Separated from the throw so the decision is
+// unit-testable without a browser context. Returns false the moment any leg is
+// absent (loopback bind with no harness origin, no token, or a cookie was
+// produced), so a healthy capture never trips it.
+function captureAuthSkewDetected({ harnessOrigin, cookieCount, tokenExists }) {
+  return Boolean(harnessOrigin) && cookieCount === 0 && Boolean(tokenExists);
+}
 
 const {
   getInitScript,
@@ -803,6 +875,45 @@ async function runScenarioCheck(
   }
   const context = await browser.newContext(contextOptions);
 
+  // Authenticate the capture context to the editor's token-gated control-API
+  // BEFORE any navigation. On a non-loopback bind the harness route requires the
+  // session token; the browser UI carries it as a cookie automatically but the
+  // headless capturer does not, so inject it from the on-box token file. Scoped
+  // to the SAME resolved harness origin the capture navigates to: when no harness
+  // origin resolves (missing server-state, or a test that passes
+  // `harnessOrigin: null`) there is nothing to authenticate to, so no cookie is
+  // added. The `addCookies` guard keeps a mock context that doesn't implement it
+  // from throwing (a real Playwright context always has it).
+  const sessionCookies = buildSessionTokenCookies({
+    harnessOrigin: resolvedHarnessOrigin,
+  });
+  // Capability-skew guard. When the capture WILL use the token-gated harness
+  // route (a harness origin resolved) AND an on-box session token exists, but no
+  // `cy_session` cookie was produced, the token injection is broken — the
+  // generated `.codeyam/capture.js` is stale relative to the harness route it
+  // must authenticate to. Proceeding would hit a guaranteed 401 and strand every
+  // component capture on a `#scenario-frame` timeout. Fail loudly at the source
+  // instead, naming the version skew and its fix — closing the gap between the
+  // harness route (present) and the capture-side auth (absent).
+  if (
+    captureAuthSkewDetected({
+      harnessOrigin: resolvedHarnessOrigin,
+      cookieCount: sessionCookies.length,
+      tokenExists: onBoxSessionTokenExists(),
+    })
+  ) {
+    throw new Error(
+      `The capture harness origin ${resolvedHarnessOrigin} is token-gated and an ` +
+        `on-box \`.codeyam/session-token\` exists, but the capture produced no ` +
+        `\`cy_session\` cookie — the generated \`.codeyam/capture.js\` is stale ` +
+        `relative to the harness route (its session-token injection is missing or ` +
+        `broken). Regenerate the capture script / refresh the editor binary on this VM.`,
+    );
+  }
+  if (sessionCookies.length > 0 && typeof context.addCookies === "function") {
+    await context.addCookies(sessionCookies);
+  }
+
   // Apply the scenario's merged `browserState` (cookies + request
   // headers) to the capture context BEFORE the first navigation.
   // Belt-and-suspenders with the proxy's `Set-Cookie` injection: the
@@ -1212,6 +1323,17 @@ async function runScenarioCheck(
       await forceFinalVisualState(frame).catch(() => {});
     }
 
+    // Center an isolated-component wrapper that is not already centered. The
+    // shot below is full-viewport with no element clip, so an isolation page
+    // that does not center itself lands in the top-left corner. Unlike
+    // forceFinalVisualState this is NOT gated on hasDeclaredInteractiveState:
+    // an isolation page with a declared interaction still needs to be centered,
+    // and moving the wrapper does not clobber its contents the way
+    // animation-forcing does — so a replayed interaction sequence stays valid.
+    if (outputPath && loaded) {
+      await centerCaptureWrapper(frame).catch(() => {});
+    }
+
     if (outputPath && loaded) {
       fs.mkdirSync(path.dirname(outputPath), { recursive: true });
       await page.screenshot({ path: outputPath, fullPage: false });
@@ -1302,6 +1424,9 @@ module.exports = {
   readStackLoadingMarkers,
   scenarioScriptsLiveSocket,
   applyBrowserState,
+  buildSessionTokenCookies,
+  captureAuthSkewDetected,
+  SESSION_COOKIE,
   isCrossOriginRequest,
   isCaptureFatalRequestFailure,
   stripMarkerHeaders,

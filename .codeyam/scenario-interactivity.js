@@ -1,5 +1,5 @@
 // codeyam-generated — DO NOT EDIT.
-// codeyam-editor: 0.1.7  source-sha256: 62f62e32b5a9318feefd00b6fed7c45b1ed17d1a92901ac13fa0c29baad6cadd
+// codeyam-editor: 0.1.7  source-sha256: f352931494dcc9dfda4ed69e8b04f62ce673e6b3bd8e3141d459d8aa261406f0
 const fs = require("fs");
 const path = require("path");
 const { createIssue } = require("./scenario-issues");
@@ -21,12 +21,35 @@ const { createIssue } = require("./scenario-issues");
 // reliable in-page attachment signal are ALSO a conservative pass: we never
 // flag a page we cannot prove is dead, so a healthy Svelte / Solid / vanilla
 // page is never a false negative. A new framework detector is a new entry in
-// `detectors` below plus a `KNOWN_FRAMEWORKS` mapping — not an edit here.
+// `detectors` below plus a `KNOWN_FRAMEWORKS` mapping — not an edit here; a
+// meta-framework that hydrates an already-detected runtime is a new row in
+// `META_FRAMEWORK_ALIASES`.
 
 // Frameworks we have an in-page attachment detector for. Inference only
 // resolves to one of these; an unrecognised framework yields `null`, which
 // the caller treats as "cannot determine" (conservative pass).
 const KNOWN_FRAMEWORKS = ["react", "vue"];
+
+// Meta-frameworks mapped to the underlying runtime whose hydration detector
+// applies. These do not carry their runtime's name in their stack identity: a
+// Next.js app is `id: "nextjs-prisma-sqlite"`, `name: "Next.js + Prisma +
+// SQLite"` — nothing contains the literal "react". Without this map the
+// substring scan below returns `null`, the capture skips the hydration gate,
+// and a genuinely un-hydrated page is reported as an inert control rather than
+// as hydration never having run.
+//
+// Saying "Next hydrates React" is a fact about the runtime, not a framework
+// assumption, so this stays consistent with the data-driven design above: a new
+// meta-framework is a new row here, not a new branch in the capture flow.
+//
+// Matched with word boundaries rather than bare substrings so an unrelated name
+// like "NextGen CLI" or "Remixer" cannot masquerade as a meta-framework.
+const META_FRAMEWORK_ALIASES = [
+  { pattern: /\bnext(\.js|js)?\b/, framework: "react" },
+  { pattern: /\bremix\b/, framework: "react" },
+  { pattern: /\bgatsby\b/, framework: "react" },
+  { pattern: /\bnuxt(\.js|js)?\b/, framework: "vue" },
+];
 
 // Read `.codeyam/stack.json` relative to the capture script's cwd (the project
 // dir — `scenario_check.rs` sets `.current_dir(project_dir)`). Never throws: a
@@ -53,6 +76,9 @@ function inferFramework(stack) {
     .filter((s) => typeof s === "string")
     .join(" ")
     .toLowerCase();
+  for (const { pattern, framework } of META_FRAMEWORK_ALIASES) {
+    if (pattern.test(haystack)) return framework;
+  }
   for (const fw of KNOWN_FRAMEWORKS) {
     if (haystack.includes(fw)) return fw;
   }

@@ -62,10 +62,6 @@
   ],
   "formatters": [],
   "screenSizes": {
-    "Laptop": {
-      "width": 1280,
-      "height": 800
-    },
     "Desktop": {
       "width": 1440,
       "height": 900
@@ -77,6 +73,10 @@
     "Tablet": {
       "width": 768,
       "height": 1024
+    },
+    "Laptop": {
+      "width": 1280,
+      "height": 800
     }
   },
   "defaultScreenSize": "Desktop",
@@ -224,6 +224,16 @@
         "filePath": "mcp-server/scripts/smoke.mjs",
         "name": "withServer",
         "reason": "test-fixture"
+      },
+      {
+        "filePath": ".claude/hooks/editor-step-hook.py",
+        "name": "_mark_tool_loading_injected",
+        "reason": "derive-generated"
+      },
+      {
+        "filePath": ".claude/hooks/editor-step-hook.py",
+        "name": "_tool_loading_already_injected",
+        "reason": "derive-generated"
       }
     ],
     "stepBudget": {
@@ -268,7 +278,10 @@
   "runnerTimeout": {
     "mode": "auto",
     "headroomSeconds": 90,
-    "floorSeconds": 900
+    "floorSeconds": 900,
+    "changedFanoutThreshold": 2,
+    "changedFanoutPerUnitSeconds": 180,
+    "changedFanoutMaxExtraSeconds": 1800
   },
   "silenceHookStderr": false,
   "git": {
@@ -280,7 +293,8 @@
       "serverHeartbeatIntervalSec": 60,
       "machineAliveHookTimeoutMs": 5000,
       "maxHookPrunePerSweep": 10,
-      "maxProgressStallSec": 900
+      "maxProgressStallSec": 900,
+      "headAutoReclaimEnabled": true
     },
     "planClaims": {
       "enabled": true,
@@ -291,5 +305,22 @@
     "autoRestartOnStaleBinary": true,
     "maxRssMb": 6144
   },
-  "setupBrowserEnabled": false
+  "setupBrowserEnabled": false,
+  "workflow": {
+    "checkIns": {
+      "planAccepted": {
+        "pause": true
+      },
+      "prototypeCompleted": {
+        "pause": true
+      },
+      "hardeningCompleted": {
+        "pause": true,
+        "autoAction": "commit"
+      },
+      "push": {
+        "pause": true
+      }
+    }
+  }
 }
