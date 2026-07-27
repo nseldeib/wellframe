@@ -128,7 +128,13 @@ def detect_event():
         return "unknown", {}
 
 
-TOOL_LOADING_SELECT_QUERY = "select:AskUserQuestion,TaskCreate,TaskList,TaskUpdate,TaskGet"
+# Only genuinely-deferred tools belong here. `AskUserQuestion` is a *resident*
+# top-level tool in editor PTY sessions (it is not in the session's deferred
+# registry), so a `select:AskUserQuestion` preload was a guaranteed wasted
+# round-trip — it either re-fetched an already-available schema or, on harnesses
+# where it is not deferred, came back "no matching deferred tools". The Task*
+# tools ARE deferred and must be preloaded before the first step hand-off.
+TOOL_LOADING_SELECT_QUERY = "select:TaskCreate,TaskList,TaskUpdate,TaskGet"
 
 # SessionStart preloads one extra tool beyond the gate-step set: `Monitor`,
 # the supported way to watch a backgrounded long command (refresh-tests,
@@ -138,6 +144,44 @@ TOOL_LOADING_SELECT_QUERY = "select:AskUserQuestion,TaskCreate,TaskList,TaskUpda
 # loops. It is NOT in the per-prompt gate-tool query because it is not a
 # gate-step tool — only the session-entry preload needs it.
 SESSION_START_SELECT_QUERY = TOOL_LOADING_SELECT_QUERY + ",Monitor"
+
+
+# Marker recording the harness session that last received the per-prompt
+# tool-loading-protocol injection. Keyed by session_id so the block fires at
+# most ONCE per session instead of on every UserPromptSubmit — the wasted
+# re-injection the fleet observed on every resumed prompt.
+_TOOL_LOADING_MARKER_REL = os.path.join(".codeyam", "state", "tool-loading-injected.json")
+
+
+def _tool_loading_already_injected(project_dir, session_id):
+    """Return True if the tool-loading-protocol was already injected for this
+    session. When session_id is absent (older harness payloads that omit it),
+    return False so the block still fires — fail-open preserves the pre-one-shot
+    behavior rather than silently suppressing the preload for the whole session.
+    """
+    if not session_id:
+        return False
+    marker_path = os.path.join(project_dir, _TOOL_LOADING_MARKER_REL)
+    try:
+        with open(marker_path, "r") as f:
+            return json.load(f).get("session_id") == session_id
+    except (IOError, json.JSONDecodeError):
+        return False
+
+
+def _mark_tool_loading_injected(project_dir, session_id):
+    """Record that this session received the tool-loading-protocol so later
+    prompts in the same session skip it. No-op when session_id is absent (the
+    fail-open path keeps injecting rather than persisting an unkeyed marker)."""
+    if not session_id:
+        return
+    marker_path = os.path.join(project_dir, _TOOL_LOADING_MARKER_REL)
+    try:
+        os.makedirs(os.path.dirname(marker_path), exist_ok=True)
+        with open(marker_path, "w") as f:
+            json.dump({"session_id": session_id}, f)
+    except Exception:
+        pass
 
 
 def main():
@@ -159,11 +203,12 @@ def main():
         print("<session-start-hook>")
         print(
             f"Call `ToolSearch` with `{SESSION_START_SELECT_QUERY}` before your first "
-            "turn so the editor workflow's AskUserQuestion + Task* tools are available "
-            "when gate steps and step-task tracking need them, and `Monitor`'s schema is "
-            "loaded before the first backgroundable long command (refresh-tests, "
-            "session-finalize) — so you can watch it via the harness completion "
-            "notification instead of falling back to a `sleep`/`until grep` polling loop."
+            "turn so the editor workflow's Task* step-tracking tools are available when "
+            "step-task tracking needs them, and `Monitor`'s schema is loaded before the "
+            "first backgroundable long command (refresh-tests, session-finalize) — so you "
+            "can watch it via the harness completion notification instead of falling back "
+            "to a `sleep`/`until grep` polling loop. (AskUserQuestion is already resident "
+            "in editor sessions, so it needs no preload.)"
         )
         print("</session-start-hook>")
         return
@@ -288,15 +333,25 @@ def main():
         lines = [
             '<user-prompt-submit-hook>',
             f'Editor Mode — {mode_prefix} Step {step}/{total_steps} ({label}): "{feature}"',
-            '',
-            '<tool-loading-protocol>',
-            f"If `AskUserQuestion`, `TaskCreate`, `TaskList`, `TaskUpdate`, or `TaskGet` "
-            f"are not loaded yet, call `ToolSearch` with `{TOOL_LOADING_SELECT_QUERY}` "
-            "before your first tool call. The editor workflow routes every gate-step "
-            "prompt through AskUserQuestion and every step hand-off through Task*; "
-            "skipping this preload stalls the step.",
-            '</tool-loading-protocol>',
         ]
+
+        # One-shot per session: the tool-loading-protocol is a session-entry
+        # concern, not a per-prompt one. Injecting it on every UserPromptSubmit
+        # re-fired the wasted preload round-trip on every resumed prompt, so gate
+        # it behind a session_id-keyed marker and emit it at most once per session.
+        session_id = event_data.get("session_id")
+        if not _tool_loading_already_injected(project_dir, session_id):
+            lines.extend([
+                '',
+                '<tool-loading-protocol>',
+                f"If the Task tools (`TaskCreate`, `TaskList`, `TaskUpdate`, `TaskGet`) "
+                f"are not loaded yet, call `ToolSearch` with `{TOOL_LOADING_SELECT_QUERY}` "
+                "before your first tool call. The editor workflow routes every step "
+                "hand-off through these Task tools; skipping this preload stalls the step. "
+                "(AskUserQuestion is already resident, so it needs no preload.)",
+                '</tool-loading-protocol>',
+            ])
+            _mark_tool_loading_injected(project_dir, session_id)
 
         # Inject editor-mode-context.md directly so Gemini doesn't have to read it blindly
         context_path = os.path.join(project_dir, ".codeyam", "editor-mode-context.md")
