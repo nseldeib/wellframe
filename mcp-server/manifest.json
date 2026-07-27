@@ -24,7 +24,8 @@
     { "name": "list_goals", "description": "Tracked goals with progress toward each target." },
     { "name": "recent_checkins", "description": "Recent daily check-ins with energy/mood/sleep/soreness/stress and notes." },
     { "name": "estimate_fatigue", "description": "Composite fatigue estimate (0-100) from recovery + recent check-in signals, with a band and breakdown." },
-    { "name": "generate_plan", "description": "A day-by-day training plan modulated by current fatigue, readiness, and goals." }
+    { "name": "generate_plan", "description": "A day-by-day training plan modulated by current fatigue, readiness, and goals." },
+    { "name": "open_dashboard", "description": "Launch the local Wellframe web dashboard — a browser view of your health data, served locally and offline from your machine." }
   ],
   "compatibility": {
     "runtimes": { "node": ">=18.0.0" }

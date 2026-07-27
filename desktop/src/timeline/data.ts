@@ -7,6 +7,7 @@
 import type { TimelineData, Workout, DailyBriefing, Mood, Weight } from './models';
 import { buildTimeline } from './timeline';
 import { FIXTURES, type ScenarioName } from './fixtures';
+import { fromWebApi } from '../webApi';
 
 interface TimelineRaw {
   workouts: Workout[];
@@ -15,21 +16,32 @@ interface TimelineRaw {
   weights: Weight[];
 }
 
+// Group the raw activity sources into days and read the filter deep links. Both
+// the native (Tauri) and web-API paths feed identically-shaped raw payloads
+// through this same derivation.
+function deriveTimeline(raw: TimelineRaw): TimelineData {
+  const days = buildTimeline(raw);
+  const params = new URLSearchParams(window.location.search);
+  return {
+    days,
+    dateLabel: days.length > 0 ? days[0].dateLabel : 'Awaiting first sync',
+    initialType: params.get('type') ?? 'all',
+    initialQuery: params.get('q') ?? '',
+  };
+}
+
 async function fromNative(): Promise<TimelineData | null> {
   try {
     const { invoke } = await import('@tauri-apps/api/core');
-    const raw = await invoke<TimelineRaw>('get_timeline');
-    const days = buildTimeline(raw);
-    const params = new URLSearchParams(window.location.search);
-    return {
-      days,
-      dateLabel: days.length > 0 ? days[0].dateLabel : 'Awaiting first sync',
-      initialType: params.get('type') ?? 'all',
-      initialQuery: params.get('q') ?? '',
-    };
+    return deriveTimeline(await invoke<TimelineRaw>('get_timeline'));
   } catch {
     return null; // not running under Tauri
   }
+}
+
+async function fromWeb(): Promise<TimelineData | null> {
+  const raw = await fromWebApi<TimelineRaw>('/timeline');
+  return raw ? deriveTimeline(raw) : null;
 }
 
 function fromFixture(): TimelineData {
@@ -40,5 +52,5 @@ function fromFixture(): TimelineData {
 }
 
 export async function loadTimeline(): Promise<TimelineData> {
-  return (await fromNative()) ?? fromFixture();
+  return (await fromNative()) ?? (await fromWeb()) ?? fromFixture();
 }

@@ -1,0 +1,235 @@
+{
+  "timestamp": "2026-07-27T15:04:17Z",
+  "title": "mcpb local web dashboard + launch debug",
+  "type": "feature",
+  "userRequest": "Can we figure out a way for the mcpb to work launching a local web experience that's similar to the desktop app? I'm also still hitting issues with both mcpb and desktop app actually launching and working; investigate and debug.",
+  "description": "Added an open_dashboard MCP tool that launches a local, offline web dashboard from the .mcpb — a browser view of the Wellframe health data served on 127.0.0.1, backed by six /api routes reading the real local SQLite through the existing sql.js layer. Each desktop data loader gained a native then web-API then fixture tier so the same desktop frontend renders real data when served by the mcpb; pack.sh bundles the desktop build into the .mcpb, and 11 unit tests cover the row-mapping and index.html-rewrite logic. Also root-caused the launch issues: the mcpb boots cleanly and the desktop app code is sound — frontend renders headless with zero errors and the Rust shell compiles — isolating the failure to the native Tauri packaging layer.",
+  "modifiedFiles": [
+    {
+      "path": ".codeyam/dependency-graph.json",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/glossary.json",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/per-test-evidence.json",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/scenarios/screenshots/app-primed-dashboard--desktop.png.hash",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/scenarios/screenshots/checkinconsole-empty--desktop.png.hash",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/scenarios/screenshots/checkinconsole-logging--desktop.png.hash",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/scenarios/screenshots/checkinform-evening--desktop.png.hash",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/scenarios/screenshots/checkinform-morning--desktop.png.hash",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/scenarios/screenshots/dashboardconsole-coach-open--desktop.png.hash",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/scenarios/screenshots/dashboardconsole-empty--desktop.png.hash",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/scenarios/screenshots/emptybriefing-default--desktop.png.hash",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/scenarios/screenshots/goalcomposer-open--desktop.png.hash",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/scenarios/screenshots/goalsconsole-empty--desktop.png.hash",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/scenarios/screenshots/goalsconsole-tracking--desktop.png.hash",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/scenarios/screenshots/onboardstep-primary--desktop.png.hash",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/scenarios/screenshots/onboardstep-secondary--desktop.png.hash",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/session-narrative.json",
+      "status": "deleted"
+    },
+    {
+      "path": ".codeyam/test-cache.json",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/test-cache/all.json",
+      "status": "modified"
+    },
+    {
+      "path": ".codeyam/test-registry.json",
+      "status": "modified"
+    },
+    {
+      "path": "desktop/src/checkin/data.ts",
+      "status": "modified"
+    },
+    {
+      "path": "desktop/src/connections/connections.test.ts",
+      "status": "modified"
+    },
+    {
+      "path": "desktop/src/dashboard/data.ts",
+      "status": "modified"
+    },
+    {
+      "path": "desktop/src/goals/data.ts",
+      "status": "modified"
+    },
+    {
+      "path": "desktop/src/recovery/data.ts",
+      "status": "modified"
+    },
+    {
+      "path": "desktop/src/timeline/data.ts",
+      "status": "modified"
+    },
+    {
+      "path": "desktop/src/trends/data.ts",
+      "status": "modified"
+    },
+    {
+      "path": "mcp-server/README.md",
+      "status": "modified"
+    },
+    {
+      "path": "mcp-server/manifest.json",
+      "status": "modified"
+    },
+    {
+      "path": "mcp-server/scripts/pack.sh",
+      "status": "modified"
+    },
+    {
+      "path": "mcp-server/src/index.ts",
+      "status": "modified"
+    },
+    {
+      "path": "desktop/src/webApi.ts",
+      "status": "added"
+    },
+    {
+      "path": "mcp-server/src/webdata.test.ts",
+      "status": "added"
+    },
+    {
+      "path": "mcp-server/src/webdata.ts",
+      "status": "added"
+    },
+    {
+      "path": "mcp-server/src/webserver.test.ts",
+      "status": "added"
+    },
+    {
+      "path": "mcp-server/src/webserver.ts",
+      "status": "added"
+    },
+    {
+      "path": "scratchpad/pr2.json",
+      "status": "added"
+    },
+    {
+      "path": "scratchpad/pr_v014.json",
+      "status": "added"
+    },
+    {
+      "path": "scratchpad/refs/codeyam-counter.md",
+      "status": "added"
+    },
+    {
+      "path": "scratchpad/refs/el-carot.md",
+      "status": "added"
+    },
+    {
+      "path": "scratchpad/refs/happytrip.md",
+      "status": "added"
+    },
+    {
+      "path": "scratchpad/refs/tabcommand.md",
+      "status": "added"
+    },
+    {
+      "path": "scratchpad/shot-dashboard.png",
+      "status": "added"
+    },
+    {
+      "path": "scratchpad/shot-timeline.png",
+      "status": "added"
+    },
+    {
+      "path": "scratchpad/shot-trends.png",
+      "status": "added"
+    }
+  ],
+  "scenarioScreenshots": [
+    {
+      "name": "App - Primed Dashboard",
+      "screenshotPath": "app-primed-dashboard--desktop.png"
+    },
+    {
+      "name": "CheckinConsole - Empty",
+      "screenshotPath": "checkinconsole-empty--desktop.png"
+    },
+    {
+      "name": "CheckinConsole - Logging",
+      "screenshotPath": "checkinconsole-logging--desktop.png"
+    },
+    {
+      "name": "CheckinForm - Evening",
+      "screenshotPath": "checkinform-evening--desktop.png"
+    },
+    {
+      "name": "CheckinForm - Morning",
+      "screenshotPath": "checkinform-morning--desktop.png"
+    },
+    {
+      "name": "GoalComposer - Open",
+      "screenshotPath": "goalcomposer-open--desktop.png"
+    },
+    {
+      "name": "GoalsConsole - Empty",
+      "screenshotPath": "goalsconsole-empty--desktop.png"
+    },
+    {
+      "name": "GoalsConsole - Tracking",
+      "screenshotPath": "goalsconsole-tracking--desktop.png"
+    }
+  ],
+  "testResults": {
+    "total": 174,
+    "passed": 174,
+    "failed": 0,
+    "runners": [
+      {
+        "name": "tests",
+        "total": 174,
+        "passed": 174
+      }
+    ]
+  }
+}

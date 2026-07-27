@@ -163,6 +163,15 @@
       "runner": "tests"
     },
     {
+      "description": "The frontend models call the sort column `order`, but SQLite reserves that word so the column is `ord` — this one rename is what keeps the ported UI reading the same field name it always has.",
+      "file": "mcp-server/src/webdata.test.ts",
+      "format": "vitest",
+      "key": "camelKey › maps ord → order and snake_case → camelCase",
+      "line": 9,
+      "registeredAt": "2026-07-27T14:18:26Z",
+      "runner": "tests"
+    },
+    {
       "description": "honors a custom radius argument",
       "file": "desktop/src/dashboard/dial.test.ts",
       "format": "vitest",
@@ -376,6 +385,33 @@
       "key": "emphasize › wraps multiple spans",
       "line": 21,
       "registeredAt": "2026-07-07T13:40:51.387104421+00:00",
+      "runner": "tests"
+    },
+    {
+      "description": "When the database is present the builder's value is returned verbatim.",
+      "file": "mcp-server/src/webdata.test.ts",
+      "format": "vitest",
+      "key": "emptyOnMissing › passes through the built value when the database is present",
+      "line": 65,
+      "registeredAt": "2026-07-27T14:18:26Z",
+      "runner": "tests"
+    },
+    {
+      "description": "Only a missing DB is swallowed; any other read failure must propagate so a real bug is never masked as an empty payload.",
+      "file": "mcp-server/src/webdata.test.ts",
+      "format": "vitest",
+      "key": "emptyOnMissing › rethrows non-missing errors so real read failures are not masked",
+      "line": 72,
+      "registeredAt": "2026-07-27T14:18:26Z",
+      "runner": "tests"
+    },
+    {
+      "description": "A missing database is the day-one state, not an error: the desktop app creates an empty schema on first launch, so the web API must return the empty payload (which renders the empty state) rather than surfacing a 500.",
+      "file": "mcp-server/src/webdata.test.ts",
+      "format": "vitest",
+      "key": "emptyOnMissing › returns the empty payload when the build throws DbMissingError",
+      "line": 56,
+      "registeredAt": "2026-07-27T14:18:26Z",
       "runner": "tests"
     },
     {
@@ -658,12 +694,48 @@
       "runner": "tests"
     },
     {
+      "description": "A raw sql.js row arrives with snake_case keys and 0/1 integer flags; the frontend expects camelCase keys and real booleans, so both transforms must happen together or a component's `positive ? …` branch reads a truthy 0.",
+      "file": "mcp-server/src/webdata.test.ts",
+      "format": "vitest",
+      "key": "mapRow › camelCases keys and coerces named integer flags to booleans",
+      "line": 22,
+      "registeredAt": "2026-07-27T14:18:26Z",
+      "runner": "tests"
+    },
+    {
+      "description": "A 0 flag must become false (not stay a falsy-but-present 0), and columns not named as booleans must pass through untouched.",
+      "file": "mcp-server/src/webdata.test.ts",
+      "format": "vitest",
+      "key": "mapRow › coerces a 0 flag to false and leaves unlisted columns untouched",
+      "line": 35,
+      "registeredAt": "2026-07-27T14:18:26Z",
+      "runner": "tests"
+    },
+    {
+      "description": "Nulls survive the mapping, and a boolean key that isn't present in the row is not fabricated as `false`.",
+      "file": "mcp-server/src/webdata.test.ts",
+      "format": "vitest",
+      "key": "mapRow › preserves nulls and does not invent boolean keys that are absent",
+      "line": 44,
+      "registeredAt": "2026-07-27T14:18:26Z",
+      "runner": "tests"
+    },
+    {
       "description": "A very short key is fully masked.",
       "file": "components/dashboard/connections.test.ts",
       "format": "vitest",
       "key": "maskKey › fully masks a key of four or fewer characters",
       "line": 66,
       "registeredAt": "2026-07-08T20:23:26Z",
+      "runner": "tests"
+    },
+    {
+      "description": "Only the last four characters survive; a too-short key masks entirely.",
+      "file": "desktop/src/connections/connections.test.ts",
+      "format": "vitest",
+      "key": "maskKey › keeps the last four",
+      "line": 104,
+      "registeredAt": "2026-07-27T15:03:09.557447334+00:00",
       "runner": "tests"
     },
     {
@@ -682,6 +754,33 @@
       "key": "maskKey › trims whitespace before masking",
       "line": 72,
       "registeredAt": "2026-07-08T20:23:26Z",
+      "runner": "tests"
+    },
+    {
+      "description": "An errored connection row does not count the provider as connected.",
+      "file": "desktop/src/connections/connections.test.ts",
+      "format": "vitest",
+      "key": "mergeCatalog + activeCoach › does not count an errored row as connected",
+      "line": 89,
+      "registeredAt": "2026-07-27T15:03:09.557447334+00:00",
+      "runner": "tests"
+    },
+    {
+      "description": "With no stored connections, every catalog provider is unconnected.",
+      "file": "desktop/src/connections/connections.test.ts",
+      "format": "vitest",
+      "key": "mergeCatalog + activeCoach › leaves uncatalogued providers unconnected",
+      "line": 97,
+      "registeredAt": "2026-07-27T15:03:09.557447334+00:00",
+      "runner": "tests"
+    },
+    {
+      "description": "A stored connection marks its catalog provider connected and surfaces as the active coach.",
+      "file": "desktop/src/connections/connections.test.ts",
+      "format": "vitest",
+      "key": "mergeCatalog + activeCoach › marks the stored provider connected and surfaces the active coach",
+      "line": 80,
+      "registeredAt": "2026-07-27T15:03:09.557447334+00:00",
       "runner": "tests"
     },
     {
@@ -964,6 +1063,15 @@
       "runner": "tests"
     },
     {
+      "description": "A local endpoint that can't be reached fails; a reachable one resolves ok.",
+      "file": "desktop/src/connections/connections.test.ts",
+      "format": "vitest",
+      "key": "resolveConnection › fails an obviously-offline local endpoint",
+      "line": 61,
+      "registeredAt": "2026-07-27T15:03:09.557447334+00:00",
+      "runner": "tests"
+    },
+    {
       "description": "An unreachable local endpoint fails with a friendly error.",
       "file": "components/dashboard/connections.test.ts",
       "format": "vitest",
@@ -973,12 +1081,30 @@
       "runner": "tests"
     },
     {
+      "description": "A health-source oauth connect resolves to the synced status.",
+      "file": "desktop/src/connections/connections.test.ts",
+      "format": "vitest",
+      "key": "resolveConnection › maps a health oauth connect to synced",
+      "line": 54,
+      "registeredAt": "2026-07-27T15:03:09.557447334+00:00",
+      "runner": "tests"
+    },
+    {
+      "description": "An AI apiKey connect resolves to connected, with the key masked in the detail.",
+      "file": "desktop/src/connections/connections.test.ts",
+      "format": "vitest",
+      "key": "resolveConnection › maps an AI apiKey connect to connected + masked detail",
+      "line": 43,
+      "registeredAt": "2026-07-27T15:03:09.557447334+00:00",
+      "runner": "tests"
+    },
+    {
       "description": "A too-short key is rejected via the shared validator.",
       "file": "components/dashboard/connections.test.ts",
       "format": "vitest",
       "key": "resolveConnection › rejects a too-short api key",
       "line": 202,
-      "registeredAt": "2026-07-08T20:23:26Z",
+      "registeredAt": "2026-07-27T15:01:30.504720863+00:00",
       "runner": "tests"
     },
     {
@@ -987,7 +1113,7 @@
       "format": "vitest",
       "key": "resolveConnection › rejects an unknown provider",
       "line": 190,
-      "registeredAt": "2026-07-08T20:23:26Z",
+      "registeredAt": "2026-07-27T15:01:30.504720863+00:00",
       "runner": "tests"
     },
     {
@@ -996,7 +1122,16 @@
       "format": "vitest",
       "key": "resolveConnection › rejects an unsupported method for the provider",
       "line": 195,
-      "registeredAt": "2026-07-08T20:23:26Z",
+      "registeredAt": "2026-07-27T15:01:30.504720863+00:00",
+      "runner": "tests"
+    },
+    {
+      "description": "An unknown provider or a method the provider doesn't support fails to resolve.",
+      "file": "desktop/src/connections/connections.test.ts",
+      "format": "vitest",
+      "key": "resolveConnection › rejects unknown providers and unsupported methods",
+      "line": 36,
+      "registeredAt": "2026-07-27T15:03:09.557447334+00:00",
       "runner": "tests"
     },
     {
@@ -1033,6 +1168,42 @@
       "key": "resolveConnection › resolves an mcp connect with the MCP detail",
       "line": 171,
       "registeredAt": "2026-07-08T20:23:26Z",
+      "runner": "tests"
+    },
+    {
+      "description": "The override is a candidate, not an unchecked answer: a path with no index.html must be rejected so a mistyped WELLFRAME_WEB_DIST can't make the server serve a directory that isn't a frontend build.",
+      "file": "mcp-server/src/webserver.test.ts",
+      "format": "vitest",
+      "key": "resolveFrontendDir › does not accept an override path that lacks an index.html",
+      "line": 45,
+      "registeredAt": "2026-07-27T14:18:26Z",
+      "runner": "tests"
+    },
+    {
+      "description": "A refresh on a deep client route must still load the hashed assets, which are referenced relatively — the injected base href resolves them from root.",
+      "file": "mcp-server/src/webserver.test.ts",
+      "format": "vitest",
+      "key": "rewriteIndexHtml › injects a base href so deep-route relative assets resolve from root",
+      "line": 12,
+      "registeredAt": "2026-07-27T14:18:26Z",
+      "runner": "tests"
+    },
+    {
+      "description": "The marker is a separate external script so the desktop build's strict `default-src 'self'` CSP (which forbids inline script) still allows it.",
+      "file": "mcp-server/src/webserver.test.ts",
+      "format": "vitest",
+      "key": "rewriteIndexHtml › injects the external web-mode marker script kept external for the strict CSP",
+      "line": 21,
+      "registeredAt": "2026-07-27T14:18:26Z",
+      "runner": "tests"
+    },
+    {
+      "description": "The rewrite is additive: the original CSP meta, module script, and root div are all preserved untouched.",
+      "file": "mcp-server/src/webserver.test.ts",
+      "format": "vitest",
+      "key": "rewriteIndexHtml › leaves the original document CSP meta, module script and root div intact",
+      "line": 27,
+      "registeredAt": "2026-07-27T14:18:26Z",
       "runner": "tests"
     },
     {
@@ -1158,7 +1329,7 @@
       "format": "vitest",
       "key": "toConnectionRow › narrows a raw row to a typed ConnectionRow",
       "line": 212,
-      "registeredAt": "2026-07-08T20:27:14.398599176+00:00",
+      "registeredAt": "2026-07-27T15:01:30.504720863+00:00",
       "runner": "tests"
     },
     {
@@ -1167,7 +1338,7 @@
       "format": "vitest",
       "key": "toConnectionRow › preserves null detail and endpoint",
       "line": 237,
-      "registeredAt": "2026-07-08T20:27:14.398599176+00:00",
+      "registeredAt": "2026-07-27T15:01:30.504720863+00:00",
       "runner": "tests"
     },
     {
@@ -1243,6 +1414,24 @@
       "runner": "tests"
     },
     {
+      "description": "A local endpoint accepts a URL or host:port, but rejects free text.",
+      "file": "desktop/src/connections/connections.test.ts",
+      "format": "vitest",
+      "key": "validateConnectInput › accepts url or host:port endpoints, rejects junk",
+      "line": 22,
+      "registeredAt": "2026-07-27T15:03:09.557447334+00:00",
+      "runner": "tests"
+    },
+    {
+      "description": "OAuth carries no user-entered value, so it validates with empty input.",
+      "file": "desktop/src/connections/connections.test.ts",
+      "format": "vitest",
+      "key": "validateConnectInput › needs no input for oauth",
+      "line": 29,
+      "registeredAt": "2026-07-27T15:03:09.557447334+00:00",
+      "runner": "tests"
+    },
+    {
       "description": "OAuth needs no typed input, so any value is fine.",
       "file": "components/dashboard/connections.test.ts",
       "format": "vitest",
@@ -1285,6 +1474,15 @@
       "key": "validateConnectInput › rejects an empty endpoint",
       "line": 48,
       "registeredAt": "2026-07-08T20:23:26Z",
+      "runner": "tests"
+    },
+    {
+      "description": "An API key must be present and non-trivial; empty or too-short is rejected.",
+      "file": "desktop/src/connections/connections.test.ts",
+      "format": "vitest",
+      "key": "validateConnectInput › requires a non-trivial API key",
+      "line": 15,
+      "registeredAt": "2026-07-27T15:03:09.557447334+00:00",
       "runner": "tests"
     },
     {

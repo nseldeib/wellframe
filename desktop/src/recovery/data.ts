@@ -12,6 +12,7 @@ import type {
   RecoveryAction,
 } from './models';
 import { FIXTURES, type ScenarioName } from './fixtures';
+import { fromWebApi } from '../webApi';
 
 export interface RecoveryData {
   recovery: RecoveryReadFull;
@@ -36,19 +37,31 @@ function deepLinks(): { initialFactorPos?: number; initialActionPos?: number } {
   };
 }
 
+// Assemble the latest read with its factors + actions (flat models, no FK) and
+// read the deep links. Shared by the native (Tauri) and web-API paths.
+function deriveRecovery(raw: RecoveryRaw): RecoveryData {
+  const recovery: RecoveryReadFull = raw.read
+    ? { ...raw.read, factors: raw.factors, actions: raw.actions }
+    : null;
+  return {
+    recovery,
+    dateLabel: recovery?.dateLabel ?? 'Awaiting first sync',
+    ...deepLinks(),
+  };
+}
+
 async function fromNative(): Promise<RecoveryData | null> {
   try {
     const { invoke } = await import('@tauri-apps/api/core');
-    const { read, factors, actions } = await invoke<RecoveryRaw>('get_recovery');
-    const recovery: RecoveryReadFull = read ? { ...read, factors, actions } : null;
-    return {
-      recovery,
-      dateLabel: recovery?.dateLabel ?? 'Awaiting first sync',
-      ...deepLinks(),
-    };
+    return deriveRecovery(await invoke<RecoveryRaw>('get_recovery'));
   } catch {
     return null; // not running under Tauri
   }
+}
+
+async function fromWeb(): Promise<RecoveryData | null> {
+  const raw = await fromWebApi<RecoveryRaw>('/recovery');
+  return raw ? deriveRecovery(raw) : null;
 }
 
 function fromFixture(): RecoveryData {
@@ -59,5 +72,5 @@ function fromFixture(): RecoveryData {
 }
 
 export async function loadRecovery(): Promise<RecoveryData> {
-  return (await fromNative()) ?? fromFixture();
+  return (await fromNative()) ?? (await fromWeb()) ?? fromFixture();
 }

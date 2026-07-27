@@ -200,11 +200,27 @@
     ]
   },
   {
+    "description": "Groups provider connections by kind (AI coach / health data) with an expandable connect flow.",
+    "filePath": "desktop/src/connections/ConnectionsGroup.tsx",
+    "name": "ConnectionsGroup",
+    "scenarios": [
+      "connectionsgroup-ai-coach"
+    ]
+  },
+  {
     "description": "The Set Up surface: a slide-in dock with an AI-coach group and a health-data group, plus a day-one fresh mode that shows every provider as available.",
     "filePath": "components/dashboard/ConnectionsPanel.tsx",
     "name": "ConnectionsPanel",
     "scenarios": [
       "connectionspanel-populated",
+      "connectionspanel-fresh-day-one"
+    ]
+  },
+  {
+    "description": "The connections panel: lists configured providers and their status, from the day-one empty state to a populated set.",
+    "filePath": "desktop/src/connections/ConnectionsPanel.tsx",
+    "name": "ConnectionsPanel",
+    "scenarios": [
       "connectionspanel-fresh-day-one"
     ]
   },
@@ -552,6 +568,14 @@
     ]
   },
   {
+    "description": "Lets the user pick a connection method (API key / endpoint / sign-in) for a provider.",
+    "filePath": "desktop/src/connections/MethodChooser.tsx",
+    "name": "MethodChooser",
+    "scenarios": [
+      "methodchooser-default"
+    ]
+  },
+  {
     "description": "The per-method connect form: a plain-language hint, an optional API-key/endpoint input, an inline error, and the submit button. Presentational; the parent owns state.",
     "filePath": "components/dashboard/MethodForm.tsx",
     "name": "MethodForm",
@@ -560,6 +584,14 @@
       "methodform-endpoint",
       "methodform-error",
       "methodform-sign-in"
+    ]
+  },
+  {
+    "description": "The per-method connect form (API key / endpoint / sign-in), including its error state.",
+    "filePath": "desktop/src/connections/MethodForm.tsx",
+    "name": "MethodForm",
+    "scenarios": [
+      "methodform-api-key"
     ]
   },
   {
@@ -639,12 +671,28 @@
     ]
   },
   {
+    "description": "Panel to connect a provider, composing the method chooser and the method form.",
+    "filePath": "desktop/src/connections/ProviderConnectPanel.tsx",
+    "name": "ProviderConnectPanel",
+    "scenarios": [
+      "providerconnectpanel-chooser"
+    ]
+  },
+  {
     "description": "One provider line: name and blurb on the left, and either a connected status pill or a Connect/Cancel button on the right.",
     "filePath": "components/dashboard/ProviderRow.tsx",
     "name": "ProviderRow",
     "scenarios": [
       "providerrow-connected",
       "providerrow-disconnected",
+      "providerrow-active"
+    ]
+  },
+  {
+    "description": "A single provider row showing its connection state (active / connected / disconnected / error).",
+    "filePath": "desktop/src/connections/ProviderRow.tsx",
+    "name": "ProviderRow",
+    "scenarios": [
       "providerrow-active"
     ]
   },
@@ -656,6 +704,14 @@
       "providerstatuspill-connected",
       "providerstatuspill-synced",
       "providerstatuspill-error"
+    ]
+  },
+  {
+    "description": "Status pill for a provider connection (connected / synced / error).",
+    "filePath": "desktop/src/connections/ProviderStatusPill.tsx",
+    "name": "ProviderStatusPill",
+    "scenarios": [
+      "providerstatuspill-connected"
     ]
   },
   {
@@ -1253,6 +1309,15 @@
     "testFile": "components/dashboard/connections.test.ts"
   },
   {
+    "description": "Returns the currently active AI-coach connection from the list, or null when none is active.",
+    "filePath": "desktop/src/connections/connections.ts",
+    "name": "activeCoach",
+    "untestabilityReason": {
+      "justification": "Small selector over the connection list; behavior is exercised via the tested resolveConnection/mergeCatalog path and the connections scenarios.",
+      "kind": "platform-glue"
+    }
+  },
+  {
     "description": "Tauri command returning native runtime details (name, version, tauri version, OS) so the shell can prove the React-Rust IPC bridge is live.",
     "filePath": "desktop/src-tauri/src/lib.rs",
     "name": "app_info",
@@ -1310,6 +1375,21 @@
     "testFile": "desktop/src/timeline/timeline.test.ts"
   },
   {
+    "description": "Maps a raw sql.js column name to the frontend's camelCase key, with the one special-case rename ord→order (the frontend models' sort field).",
+    "filePath": "mcp-server/src/webdata.ts",
+    "name": "camelKey",
+    "testFile": "mcp-server/src/webdata.test.ts"
+  },
+  {
+    "description": "Web-API payload builder for check-ins: recent Mood rows, most recent first, from local SQLite.",
+    "filePath": "mcp-server/src/webdata.ts",
+    "name": "checkin",
+    "untestabilityReason": {
+      "justification": "Thin SQLite read over the unit-tested mapRow/query layer.",
+      "kind": "platform-glue"
+    }
+  },
+  {
     "description": "Returns the arc length (2 pi r) of the readiness dial ring for a given radius, defaulting to the design's 176px ring; used for both the dash array and the dash offset.",
     "filePath": "components/dashboard/dial.ts",
     "name": "circumference",
@@ -1358,6 +1438,15 @@
     "untestabilityReason": {
       "justification": "Server Action performing Prisma upsert + revalidatePath; the pure decision logic is resolveConnection, which is unit-tested",
       "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Resolves a connect attempt via the tested resolveConnection, then (under Tauri) persists it through the native save_connection command and fires wf:data-changed.",
+    "filePath": "desktop/src/connections/data.ts",
+    "name": "connectProvider",
+    "untestabilityReason": {
+      "justification": "Orchestrates the registered findProvider + resolveConnection then hits the Tauri IPC boundary; no in-process logic of its own beyond delegating.",
+      "kind": "trivial-wrapper"
     }
   },
   {
@@ -1414,6 +1503,15 @@
     }
   },
   {
+    "description": "Web-API payload builder for the dashboard: latest briefing, ordered overnight vitals, and latest workout, read from local SQLite.",
+    "filePath": "mcp-server/src/webdata.ts",
+    "name": "dashboard",
+    "untestabilityReason": {
+      "justification": "Thin SQLite read composition; row mapping is covered by mapRow's unit tests and the empty-DB path by emptyOnMissing's.",
+      "kind": "platform-glue"
+    }
+  },
+  {
     "description": "Returns the UTC calendar-date key (YYYY-MM-DD) of an ISO datetime, used to group timeline entries into days deterministically regardless of render timezone.",
     "filePath": "components/timeline/timeline.ts",
     "name": "dayKey",
@@ -1461,6 +1559,15 @@
     }
   },
   {
+    "description": "Derives the check-in metabar label and default morning/evening part-of-day from the Mood rows; shared by the native and web-API paths.",
+    "filePath": "desktop/src/checkin/data.ts",
+    "name": "deriveCheckin",
+    "untestabilityReason": {
+      "justification": "Reads window.location and the local clock; exercised via app scenarios.",
+      "kind": "platform-glue"
+    }
+  },
+  {
     "description": "Builds the timeline filter-chip set from the entry kinds actually present in the data: leads with an All chip, lists known kinds in CHIP_ORDER order, and appends any unexpected filterKey so nothing in the feed is unreachable by the filters.",
     "filePath": "components/timeline/timeline.ts",
     "name": "deriveChips",
@@ -1471,6 +1578,42 @@
     "filePath": "desktop/src/timeline/timeline.ts",
     "name": "deriveChips",
     "testFile": "desktop/src/timeline/timeline.test.ts"
+  },
+  {
+    "description": "Derives the goals metabar label and composer deep link from the goal rows; shared by the native and web-API paths.",
+    "filePath": "desktop/src/goals/data.ts",
+    "name": "deriveGoals",
+    "untestabilityReason": {
+      "justification": "Reads window.location deep links; exercised via app scenarios.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Assembles the latest recovery read with its factors and actions and reads the deep links; shared by the native and web-API paths.",
+    "filePath": "desktop/src/recovery/data.ts",
+    "name": "deriveRecovery",
+    "untestabilityReason": {
+      "justification": "Reads window.location and assembles the view from flat models; exercised via app scenarios.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Groups the raw timeline activity sources into days via the unit-tested buildTimeline and reads the filter deep links; shared by the native and web-API paths.",
+    "filePath": "desktop/src/timeline/data.ts",
+    "name": "deriveTimeline",
+    "untestabilityReason": {
+      "justification": "Reads window.location and delegates all day-grouping to the unit-tested buildTimeline; exercised via app scenarios.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Stitches trend points onto their metrics and reads the range deep link; shared by the native and web-API paths.",
+    "filePath": "desktop/src/trends/data.ts",
+    "name": "deriveTrends",
+    "untestabilityReason": {
+      "justification": "Reads window.location and assembles the view from flat models; exercised via app scenarios.",
+      "kind": "platform-glue"
+    }
   },
   {
     "description": "Extracts the SQLite schema string from the desktop app's Rust source (the const SCHEMA literal) so the mcpb smoke-test fixture database cannot drift from what Wellframe writes; throws a named error when the constant is absent instead of building an empty schema.",
@@ -1497,6 +1640,15 @@
     }
   },
   {
+    "description": "Removes a saved provider connection via the native remove_connection command; a no-op in the browser preview.",
+    "filePath": "desktop/src/connections/data.ts",
+    "name": "disconnectProvider",
+    "untestabilityReason": {
+      "justification": "Tauri IPC boundary; returns without persisting when not under Tauri.",
+      "kind": "platform-glue"
+    }
+  },
+  {
     "description": "Escapes HTML in a briefing string and converts *word* spans into <em>word</em>, so a headline or coach message can italicize one phrase safely (escaping runs before emphasis so injected markup stays inert).",
     "filePath": "components/dashboard/format.ts",
     "name": "emphasize",
@@ -1507,6 +1659,12 @@
     "filePath": "desktop/src/dashboard/format.ts",
     "name": "emphasize",
     "testFile": "desktop/src/dashboard/format.test.ts"
+  },
+  {
+    "description": "Runs a web-API payload builder but treats a missing database as the empty day-one state, returning the empty payload while rethrowing any other read error.",
+    "filePath": "mcp-server/src/webdata.ts",
+    "name": "emptyOnMissing",
+    "testFile": "mcp-server/src/webdata.test.ts"
   },
   {
     "description": "Predicate driving the timeline's type chips and search box: an entry passes when the active type chip matches its filterKey (empty/'all' matches everything) AND the query substring-matches its title, summary, or accent case-insensitively.",
@@ -1564,6 +1722,15 @@
     "filePath": "components/dashboard/connections.ts",
     "name": "findProvider",
     "testFile": "components/dashboard/connections.test.ts"
+  },
+  {
+    "description": "Looks up a provider definition in the catalog by id.",
+    "filePath": "desktop/src/connections/connections.ts",
+    "name": "findProvider",
+    "untestabilityReason": {
+      "justification": "Catalog lookup helper; exercised through the tested resolveConnection path.",
+      "kind": "platform-glue"
+    }
   },
   {
     "description": "Human progress label 'current / target unit', trimming trailing .0 for whole numbers and keeping one decimal for fractional values.",
@@ -1765,6 +1932,69 @@
     ]
   },
   {
+    "description": "Web-mode check-in source: fetches the Mood rows from the local mcpb web API and runs deriveCheckin, or null when not served in web mode.",
+    "filePath": "desktop/src/checkin/data.ts",
+    "name": "fromWeb",
+    "untestabilityReason": {
+      "justification": "Browser fetch boundary via fromWebApi; delegates shaping to deriveCheckin.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Web-mode dashboard source: fetches the DashboardData payload from the local mcpb web API, or null when not served in web mode.",
+    "filePath": "desktop/src/dashboard/data.ts",
+    "name": "fromWeb",
+    "untestabilityReason": {
+      "justification": "Browser fetch boundary via fromWebApi; returns null off the web-mode path.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Web-mode goals source: fetches the goal rows from the local mcpb web API and runs deriveGoals, or null when not served in web mode.",
+    "filePath": "desktop/src/goals/data.ts",
+    "name": "fromWeb",
+    "untestabilityReason": {
+      "justification": "Browser fetch boundary via fromWebApi; delegates shaping to deriveGoals.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Web-mode recovery source: fetches the raw recovery payload from the local mcpb web API and runs deriveRecovery, or null when not served in web mode.",
+    "filePath": "desktop/src/recovery/data.ts",
+    "name": "fromWeb",
+    "untestabilityReason": {
+      "justification": "Browser fetch boundary via fromWebApi; delegates shaping to deriveRecovery.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Web-mode timeline source: fetches the raw timeline payload from the local mcpb web API and runs deriveTimeline, or null when not served in web mode.",
+    "filePath": "desktop/src/timeline/data.ts",
+    "name": "fromWeb",
+    "untestabilityReason": {
+      "justification": "Browser fetch boundary via fromWebApi; delegates shaping to deriveTimeline.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Web-mode trends source: fetches the raw trends payload from the local mcpb web API and runs deriveTrends, or null when not served in web mode.",
+    "filePath": "desktop/src/trends/data.ts",
+    "name": "fromWeb",
+    "untestabilityReason": {
+      "justification": "Browser fetch boundary via fromWebApi; delegates shaping to deriveTrends.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Fetches a raw payload from the local web API when in web mode, returning null (so the caller falls back to a fixture) outside web mode or on failure.",
+    "filePath": "desktop/src/webApi.ts",
+    "name": "fromWebApi",
+    "untestabilityReason": {
+      "justification": "Browser fetch boundary; returns null off the web-mode path.",
+      "kind": "platform-glue"
+    }
+  },
+  {
     "description": "Produces a day-by-day training plan modulated by fatigue, readiness, and goals: rest-led when fatigued, quality when fresh, folding in strength/volume sessions per goal, with a rationale.",
     "filePath": "mcp-server/src/analysis.ts",
     "name": "generateTrainingPlan",
@@ -1887,6 +2117,15 @@
     "testFile": "desktop/src/goals/goals.test.ts"
   },
   {
+    "description": "Web-API payload builder for goals: every goal in display order from local SQLite.",
+    "filePath": "mcp-server/src/webdata.ts",
+    "name": "goals",
+    "untestabilityReason": {
+      "justification": "Thin SQLite read over the unit-tested mapRow/query layer.",
+      "kind": "platform-glue"
+    }
+  },
+  {
     "description": "Groups normalized timeline entries into newest-first days, each day's entries newest-first, attaching a relative day label keyed off the single newest entry across the set.",
     "filePath": "components/timeline/timeline.ts",
     "name": "groupByDay",
@@ -1897,6 +2136,15 @@
     "filePath": "desktop/src/timeline/timeline.ts",
     "name": "groupByDay",
     "testFile": "desktop/src/timeline/timeline.test.ts"
+  },
+  {
+    "description": "HTTP request router for the local web server: dispatches the /api routes, the web-mode marker script, static assets, and the SPA index fallback.",
+    "filePath": "mcp-server/src/webserver.ts",
+    "name": "handle",
+    "untestabilityReason": {
+      "justification": "Boundary request router; each branch delegates to the unit-tested payload builders, the tested index rewrite, or a static file read.",
+      "kind": "trivial-wrapper"
+    }
   },
   {
     "description": "Infers morning (before noon) vs evening (noon on) from an hour; falls back to morning for an out-of-range hour.",
@@ -1961,6 +2209,15 @@
     }
   },
   {
+    "description": "Whether the app is running under the Tauri shell (vs the browser preview), gating the persistence paths.",
+    "filePath": "desktop/src/connections/data.ts",
+    "name": "isTauri",
+    "untestabilityReason": {
+      "justification": "Reads a Tauri-injected window global; an environment boundary check.",
+      "kind": "platform-glue"
+    }
+  },
+  {
     "description": "Detects whether the app is running under Tauri by probing for the __TAURI_INTERNALS__ global on window.",
     "filePath": "desktop/src/goals/data.ts",
     "name": "isTauri",
@@ -1975,6 +2232,21 @@
     }
   },
   {
+    "description": "Tauri command returning the saved provider connections (most recent first) from local SQLite.",
+    "filePath": "desktop/src-tauri/src/lib.rs",
+    "name": "list_connections",
+    "testFile": "desktop/src-tauri/src/lib.rs"
+  },
+  {
+    "description": "Binds the web server to the preferred port, falling back to an ephemeral port on EADDRINUSE.",
+    "filePath": "mcp-server/src/webserver.ts",
+    "name": "listen",
+    "untestabilityReason": {
+      "justification": "Node socket bind boundary.",
+      "kind": "platform-glue"
+    }
+  },
+  {
     "description": "Top-level check-in data loader: returns native Tauri data when available, otherwise the browser-preview fixture.",
     "filePath": "desktop/src/checkin/data.ts",
     "name": "loadCheckin",
@@ -1984,6 +2256,15 @@
     ],
     "untestabilityReason": {
       "justification": "Dispatches between the native Tauri read path and the browser-preview fixture path.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Loads saved provider connections via the native list_connections command; returns an empty list in the browser preview.",
+    "filePath": "desktop/src/connections/data.ts",
+    "name": "loadConnections",
+    "untestabilityReason": {
+      "justification": "Tauri IPC boundary; returns an empty list when not under Tauri.",
       "kind": "platform-glue"
     }
   },
@@ -2095,6 +2376,12 @@
     }
   },
   {
+    "description": "Converts a raw snake_case sql.js row into the frontend's camelCase shape, coercing the named 0/1 integer columns to real booleans.",
+    "filePath": "mcp-server/src/webdata.ts",
+    "name": "mapRow",
+    "testFile": "mcp-server/src/webdata.test.ts"
+  },
+  {
     "description": "Maps a SQLite row to a DailyBriefing struct.",
     "filePath": "desktop/src-tauri/src/lib.rs",
     "name": "map_briefing",
@@ -2127,10 +2414,22 @@
     "testFile": "components/dashboard/connections.test.ts"
   },
   {
+    "description": "Masks an API key for display, showing only a short prefix/suffix so a stored secret is never rendered in full.",
+    "filePath": "desktop/src/connections/connections.ts",
+    "name": "maskKey",
+    "testFile": "desktop/src/connections/connections.test.ts"
+  },
+  {
     "description": "Merges the static provider catalog with stored ConnectionRow[] into view-model rows (connected/active flags); an error-status row is surfaced but not counted as connected; catalog order is preserved.",
     "filePath": "components/dashboard/connections.ts",
     "name": "mergeCatalog",
     "testFile": "components/dashboard/connections.test.ts"
+  },
+  {
+    "description": "Merges the static provider catalog with the user's saved connections into the display list the panel renders.",
+    "filePath": "desktop/src/connections/connections.ts",
+    "name": "mergeCatalog",
+    "testFile": "desktop/src/connections/connections.test.ts"
   },
   {
     "description": "Builds a check-in's one-line summary from its present energy / mood word / note fields.",
@@ -2158,20 +2457,6 @@
     }
   },
   {
-    "description": "Inert no-op placeholder callback passed to the console's deferred coach/setup triggers.",
-    "filePath": "desktop/src/dashboard/DashboardConsole.tsx",
-    "name": "noop",
-    "tags": [
-      "dashboard",
-      "desktop",
-      "placeholder"
-    ],
-    "untestabilityReason": {
-      "justification": "inert no-op placeholder callback",
-      "kind": "trivial-wrapper"
-    }
-  },
-  {
     "description": "Narrows an arbitrary string to a known TrendRange, defaulting to 'weekly' so a stray ?range= value never leaves the switcher blank.",
     "filePath": "components/trends/trends.ts",
     "name": "normalizeRange",
@@ -2184,11 +2469,29 @@
     "testFile": "desktop/src/trends/trends.test.ts"
   },
   {
+    "description": "Runs a single-row read query and maps the row through mapRow, or returns null when absent.",
+    "filePath": "mcp-server/src/webdata.ts",
+    "name": "one",
+    "untestabilityReason": {
+      "justification": "Thin queryOne wrapper; the mapping it delegates to is covered by mapRow's unit tests.",
+      "kind": "platform-glue"
+    }
+  },
+  {
     "description": "Opens a fresh in-memory sql.js database from the current on-disk file bytes, raising DbMissingError when the file is absent so each query reflects the latest data.",
     "filePath": "mcp-server/src/db.ts",
     "name": "open",
     "untestabilityReason": {
       "justification": "Filesystem read + sql.js handle construction; covered end-to-end by the smoke test.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Best-effort, non-blocking open of a URL in the user's default browser across macOS, Windows, and Linux; returns false and stays quiet on a headless host.",
+    "filePath": "mcp-server/src/index.ts",
+    "name": "openBrowser",
+    "untestabilityReason": {
+      "justification": "Spawns the OS browser opener; a process/IO boundary with no in-process logic to assert.",
       "kind": "platform-glue"
     }
   },
@@ -2301,6 +2604,12 @@
       "db-read",
       "timeline"
     ],
+    "testFile": "desktop/src-tauri/src/lib.rs"
+  },
+  {
+    "description": "Reads provider_connection rows into typed ConnectionRow records, ordered by connected_at.",
+    "filePath": "desktop/src-tauri/src/lib.rs",
+    "name": "read_connections",
     "testFile": "desktop/src-tauri/src/lib.rs"
   },
   {
@@ -2449,6 +2758,15 @@
     "testFile": "desktop/src/dashboard/dial.test.ts"
   },
   {
+    "description": "Web-API payload builder for the recovery center: the latest read plus its contributing factors and suggested actions from local SQLite.",
+    "filePath": "mcp-server/src/webdata.ts",
+    "name": "recovery",
+    "untestabilityReason": {
+      "justification": "Thin SQLite read composition over the unit-tested mapRow/query layer.",
+      "kind": "platform-glue"
+    }
+  },
+  {
     "description": "Human day label for a timeline entry relative to the newest entry's day (Today / Yesterday / 'Wed Jul 2'), derived from the data's newest timestamp rather than the wall clock so seeded scenarios render stable labels.",
     "filePath": "components/timeline/timeline.ts",
     "name": "relativeDayLabel",
@@ -2473,10 +2791,34 @@
     "testFile": "desktop/src/goals/goals.test.ts"
   },
   {
+    "description": "Tauri command deleting a provider connection by provider id.",
+    "filePath": "desktop/src-tauri/src/lib.rs",
+    "name": "remove_connection",
+    "testFile": "desktop/src-tauri/src/lib.rs"
+  },
+  {
     "description": "Pure resolution of a connect attempt: validates provider/method/input then maps the method to the status and status-line detail to persist, or an error. The deterministic stand-in for the real handshake; no side effects.",
     "filePath": "components/dashboard/connections.ts",
     "name": "resolveConnection",
     "testFile": "components/dashboard/connections.test.ts"
+  },
+  {
+    "description": "The deterministic connect handshake: validates a provider/method/value and maps it to a status + detail (or an error), shared by the form and the write path.",
+    "filePath": "desktop/src/connections/connections.ts",
+    "name": "resolveConnection",
+    "testFile": "desktop/src/connections/connections.test.ts"
+  },
+  {
+    "description": "Locates the desktop frontend static build across the env override, packed-bundle, and dev-tree candidate paths, returning the first that contains an index.html or null.",
+    "filePath": "mcp-server/src/webserver.ts",
+    "name": "resolveFrontendDir",
+    "testFile": "mcp-server/src/webserver.test.ts"
+  },
+  {
+    "description": "Rewrites the served desktop index.html to inject a root base href and the external web-mode marker script, flipping the frontend into local web-API mode without relaxing its strict CSP.",
+    "filePath": "mcp-server/src/webserver.ts",
+    "name": "rewriteIndexHtml",
+    "testFile": "mcp-server/src/webserver.test.ts"
   },
   {
     "description": "Circumference (2πr) of a goal progress ring for a given radius.",
@@ -2520,6 +2862,15 @@
     "testFile": "desktop/src/trends/trends.test.ts"
   },
   {
+    "description": "Runs a read query and maps each row through the unit-tested mapRow into the frontend's camelCase shape.",
+    "filePath": "mcp-server/src/webdata.ts",
+    "name": "rows",
+    "untestabilityReason": {
+      "justification": "Thin query wrapper; the mapping it delegates to is covered by mapRow's unit tests.",
+      "kind": "platform-glue"
+    }
+  },
+  {
     "description": "Tauri builder entrypoint: registers the invoke handlers and runs the app.",
     "filePath": "desktop/src-tauri/src/lib.rs",
     "name": "run",
@@ -2544,10 +2895,25 @@
     }
   },
   {
+    "description": "Tauri command persisting (upserting) a provider connection from an already-resolved connect result.",
+    "filePath": "desktop/src-tauri/src/lib.rs",
+    "name": "save_connection",
+    "testFile": "desktop/src-tauri/src/lib.rs"
+  },
+  {
     "description": "Normalizes a 1-5 self-rating onto a 0-100 scale, the shared building block behind the subjective fatigue math.",
     "filePath": "mcp-server/src/analysis.ts",
     "name": "scale1to5",
     "testFile": "mcp-server/src/analysis.test.ts"
+  },
+  {
+    "description": "Writes a JSON HTTP response with a no-store cache header.",
+    "filePath": "mcp-server/src/webserver.ts",
+    "name": "sendJson",
+    "untestabilityReason": {
+      "justification": "Thin ServerResponse write helper.",
+      "kind": "platform-glue"
+    }
   },
   {
     "description": "Server Action: makes one AI provider the sole active coach (clears others, sets this one) in a transaction, then revalidates the dashboard.",
@@ -2559,11 +2925,41 @@
     }
   },
   {
+    "description": "Marks a provider as the active AI coach via the native set_active_coach command; a no-op in the browser preview.",
+    "filePath": "desktop/src/connections/data.ts",
+    "name": "setActiveCoach",
+    "untestabilityReason": {
+      "justification": "Tauri IPC boundary; returns without persisting when not under Tauri.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Ensures exactly one AI connection is the active coach: clears the flag on all AI providers, then sets it on the chosen non-errored one.",
+    "filePath": "desktop/src-tauri/src/lib.rs",
+    "name": "set_active",
+    "testFile": "desktop/src-tauri/src/lib.rs"
+  },
+  {
+    "description": "Tauri command marking a provider as the active AI coach.",
+    "filePath": "desktop/src-tauri/src/lib.rs",
+    "name": "set_active_coach",
+    "testFile": "desktop/src-tauri/src/lib.rs"
+  },
+  {
     "description": "Lazily initializes the sql.js (WASM) engine, locating sql-wasm.wasm inside the packed bundle and caching the instance.",
     "filePath": "mcp-server/src/db.ts",
     "name": "sql",
     "untestabilityReason": {
       "justification": "WASM engine bootstrap wiring; exercised end-to-end by the packed-bundle smoke test.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Starts (or reuses) the local 127.0.0.1 web server that serves the desktop frontend and the /api routes; idempotent so open_dashboard can be called repeatedly.",
+    "filePath": "mcp-server/src/webserver.ts",
+    "name": "startWebServer",
+    "untestabilityReason": {
+      "justification": "Node http server lifecycle/singleton boundary; the request handling and index rewrite it wires up are covered separately.",
       "kind": "platform-glue"
     }
   },
@@ -2578,6 +2974,15 @@
     "filePath": "desktop/src/recovery/recovery.ts",
     "name": "stateLabel",
     "testFile": "desktop/src/recovery/recovery.test.ts"
+  },
+  {
+    "description": "Closes the local web server and clears the singleton handle (test and shutdown helper).",
+    "filePath": "mcp-server/src/webserver.ts",
+    "name": "stopWebServer",
+    "untestabilityReason": {
+      "justification": "Node http server teardown boundary.",
+      "kind": "platform-glue"
+    }
   },
   {
     "description": "Averages recent check-in ratings into a 0-100 subjective fatigue score, inverting energy and sleep (more is better) against soreness and stress (less is better); returns null when there are no check-ins.",
@@ -2650,6 +3055,15 @@
     "testFile": "desktop/src/timeline/timeline.test.ts"
   },
   {
+    "description": "Web-API payload builder for the timeline: the four raw activity sources (workouts, briefings, moods, weights) from local SQLite.",
+    "filePath": "mcp-server/src/webdata.ts",
+    "name": "timeline",
+    "untestabilityReason": {
+      "justification": "Thin SQLite read composition over the unit-tested mapRow/query layer.",
+      "kind": "platform-glue"
+    }
+  },
+  {
     "description": "Remaps raw DB check-in rows (snake_case, notably sleep_quality) to the CheckinRatings shape the fatigue math consumes.",
     "filePath": "mcp-server/src/analysis.ts",
     "name": "toCheckinRatings",
@@ -2660,6 +3074,21 @@
     "filePath": "components/dashboard/connections.ts",
     "name": "toConnectionRow",
     "testFile": "components/dashboard/connections.test.ts"
+  },
+  {
+    "description": "Web-API payload builder for trends: the metric charts and their points from local SQLite.",
+    "filePath": "mcp-server/src/webdata.ts",
+    "name": "trends",
+    "untestabilityReason": {
+      "justification": "Thin SQLite read composition over the unit-tested mapRow/query layer.",
+      "kind": "platform-glue"
+    }
+  },
+  {
+    "description": "Inserts or updates a provider_connection row (method/status/detail/endpoint) keyed by provider id.",
+    "filePath": "desktop/src-tauri/src/lib.rs",
+    "name": "upsert_connection",
+    "testFile": "desktop/src-tauri/src/lib.rs"
   },
   {
     "description": "Validates + normalizes a check-in submission: requires a valid part of day, a valid ISO timestamp, and at least one signal (a rating or mood word); clamps ratings. Shared by the form and the submitCheckin action.",
@@ -2680,6 +3109,12 @@
     "testFile": "components/dashboard/connections.test.ts"
   },
   {
+    "description": "Validates a connect form submission (required fields per method) before it is resolved and persisted.",
+    "filePath": "desktop/src/connections/connections.ts",
+    "name": "validateConnectInput",
+    "testFile": "desktop/src/connections/connections.test.ts"
+  },
+  {
     "description": "Validates + normalizes a new-goal form submission: trims text, defaults an unknown category to 'habit', coerces numerics, rejects an empty title or non-positive target. Shared by the composer and the createGoal action.",
     "filePath": "components/goals/goals.ts",
     "name": "validateGoalInput",
@@ -2690,6 +3125,15 @@
     "filePath": "desktop/src/goals/goals.ts",
     "name": "validateGoalInput",
     "testFile": "desktop/src/goals/goals.test.ts"
+  },
+  {
+    "description": "Returns the local web-API base URL when the mcpb web server injected its marker, or null in the Tauri app and the fixture preview.",
+    "filePath": "desktop/src/webApi.ts",
+    "name": "webApiBase",
+    "untestabilityReason": {
+      "justification": "Reads an injected window global; a browser environment boundary.",
+      "kind": "platform-glue"
+    }
   },
   {
     "description": "Builds a body-weight reading's one-line summary (value + unit), appending the trend delta only when present.",

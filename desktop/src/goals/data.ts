@@ -6,6 +6,7 @@
 import type { GoalsData, Goal } from './models';
 import type { GoalDraft } from './goals';
 import { FIXTURES, type ScenarioName } from './fixtures';
+import { fromWebApi } from '../webApi';
 
 // Under Tauri the write path persists to SQLite; in the browser preview there's
 // no backend, so a submit is a local no-op (the form closes, nothing persists).
@@ -13,19 +14,29 @@ function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
+// Derive the metabar label and composer deep link from the goal rows. Shared by
+// the native (Tauri) and web-API paths.
+function deriveGoals(goals: Goal[]): GoalsData {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    goals,
+    dateLabel: goals.length > 0 ? 'Tracking' : 'Awaiting first goal',
+    initialComposing: params.get('new') === '1',
+  };
+}
+
 async function fromNative(): Promise<GoalsData | null> {
   try {
     const { invoke } = await import('@tauri-apps/api/core');
-    const goals = await invoke<Goal[]>('get_goals');
-    const params = new URLSearchParams(window.location.search);
-    return {
-      goals,
-      dateLabel: goals.length > 0 ? 'Tracking' : 'Awaiting first goal',
-      initialComposing: params.get('new') === '1',
-    };
+    return deriveGoals(await invoke<Goal[]>('get_goals'));
   } catch {
     return null; // not running under Tauri
   }
+}
+
+async function fromWeb(): Promise<GoalsData | null> {
+  const goals = await fromWebApi<Goal[]>('/goals');
+  return goals ? deriveGoals(goals) : null;
 }
 
 function fromFixture(): GoalsData {
@@ -36,7 +47,7 @@ function fromFixture(): GoalsData {
 }
 
 export async function loadGoals(): Promise<GoalsData> {
-  return (await fromNative()) ?? fromFixture();
+  return (await fromNative()) ?? (await fromWeb()) ?? fromFixture();
 }
 
 // Persist a validated new goal. Emits `wf:data-changed` on success so the app

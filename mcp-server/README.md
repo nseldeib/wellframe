@@ -20,6 +20,19 @@ bundle with no native module to compile per-OS.
 | `recommend_recovery` | Recovery score, contributing factors, suggested actions |
 | `list_goals` | Goals with progress toward each target |
 | `recent_checkins` | Recent check-ins (energy/mood/sleep/soreness/stress + notes) |
+| `open_dashboard` | Launches a local, offline **web dashboard** — a browser view of your data (see below) |
+
+## Local web dashboard (`open_dashboard`)
+
+Beyond the read tools, the server can launch a browser view of your Wellframe data —
+the same interface as the desktop app, served locally and fully offline. Ask the host
+to open it (e.g. *"open my Wellframe dashboard"*) and the `open_dashboard` tool starts
+a small web server bound to `127.0.0.1`, opens your browser, and returns the URL.
+
+It serves the desktop frontend's static build and answers `/api/*` from the same
+`sql.js` layer the read tools use — one local data source, nothing uploaded. If the
+frontend build isn't bundled, the tool still runs the API-only server and reports the
+URL. The bundled build is staged into the `.mcpb` by `npm run pack`.
 
 ## Develop
 

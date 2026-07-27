@@ -6,6 +6,7 @@
 // load, recovery, goals, check-ins. Each returns structured JSON the model can
 // reason over rather than free-form prose.
 
+import { spawn } from 'node:child_process';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -16,6 +17,7 @@ import {
   toCheckinRatings,
   parseMetricNumber,
 } from './analysis.js';
+import { startWebServer } from './webserver.js';
 
 const server = new McpServer({ name: 'wellframe-coach', version: '0.1.0' });
 
@@ -209,6 +211,54 @@ server.tool(
         })),
         days,
       });
+    }),
+);
+
+// Open a URL in the user's default browser, best-effort and non-blocking. On a
+// headless host (no browser) this simply fails quietly — the tool still returns
+// the URL so the user can open it themselves.
+function openBrowser(url: string): boolean {
+  const platform = process.platform;
+  const [cmd, args] =
+    platform === 'darwin'
+      ? ['open', [url]]
+      : platform === 'win32'
+        ? ['cmd', ['/c', 'start', '', url]]
+        : ['xdg-open', [url]];
+  try {
+    const child = spawn(cmd as string, args as string[], { stdio: 'ignore', detached: true });
+    child.on('error', () => {});
+    child.unref();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+server.tool(
+  'open_dashboard',
+  'Launch the local Wellframe web dashboard — a browser view of your health data ' +
+    '(readiness, vitals, activity timeline, trends, recovery, goals, check-ins), the same ' +
+    'interface as the desktop app but served locally from this machine and fully offline. ' +
+    'Starts a local web server (127.0.0.1 only, read-only over your local database), opens ' +
+    'your browser, and returns the URL.',
+  {},
+  () =>
+    run(async () => {
+      const handle = await startWebServer();
+      const opened = handle.frontendDir ? openBrowser(handle.url) : false;
+      return {
+        url: handle.url,
+        opened,
+        reused: handle.reused,
+        webUiAvailable: Boolean(handle.frontendDir),
+        note: handle.frontendDir
+          ? opened
+            ? `Wellframe dashboard opened at ${handle.url}`
+            : `Wellframe dashboard is running at ${handle.url} — open it in your browser.`
+          : `The Wellframe web UI build isn't in this bundle, but the local data API is ` +
+            `running at ${handle.url} (endpoints under /api).`,
+      };
     }),
 );
 

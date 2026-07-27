@@ -45,6 +45,26 @@ find "$SQLJS_DIST" -type f \
   ! -name 'sql-wasm.wasm' \
   -delete
 
+# The `open_dashboard` tool serves the desktop frontend's static build over a
+# local web server. Bundle that build as `desktop-dist/` next to the server so
+# `resolveFrontendDir()` finds it inside the installed .mcpb (its packed-layout
+# candidate is `<bundle>/desktop-dist`). Sourcemaps (~1MB) are runtime-dead.
+echo "→ staging desktop web UI (for open_dashboard)"
+DESKTOP="$ROOT/../desktop"
+if [ ! -f "$DESKTOP/dist/index.html" ] && [ -f "$DESKTOP/package.json" ]; then
+  echo "  desktop/dist missing — building it"
+  (cd "$DESKTOP" && npm ci --silent --no-audit --no-fund && npm run --silent build) \
+    || echo "  ⚠ desktop build failed; bundling API-only"
+fi
+if [ -f "$DESKTOP/dist/index.html" ]; then
+  rm -rf "$STAGE/desktop-dist"
+  cp -r "$DESKTOP/dist" "$STAGE/desktop-dist"
+  find "$STAGE/desktop-dist" -name '*.map' -delete
+  echo "  bundled desktop web UI ($(du -sh "$STAGE/desktop-dist" | cut -f1))"
+else
+  echo "  ⚠ no desktop/dist — open_dashboard will serve API-only"
+fi
+
 echo "→ packing"
 mkdir -p "$(dirname "$OUT")"
 npx --yes @anthropic-ai/mcpb pack "$STAGE" "$OUT"

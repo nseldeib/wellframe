@@ -7,6 +7,7 @@
 import type { CheckinData, Mood } from './models';
 import { inferPartOfDay, PARTS_OF_DAY, type PartOfDay, type CheckinDraft } from './checkin';
 import { FIXTURES, type ScenarioName } from './fixtures';
+import { fromWebApi } from '../webApi';
 
 // Under Tauri the write path persists to SQLite; in the browser preview there's
 // no backend, so a submit is a local no-op (the form resets, nothing persists).
@@ -14,23 +15,33 @@ function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
+// Derive the metabar label and default morning/evening part-of-day from the
+// Mood rows. Shared by the native (Tauri) and web-API paths.
+function deriveCheckin(checkins: Mood[]): CheckinData {
+  const params = new URLSearchParams(window.location.search);
+  const part = params.get('part') ?? '';
+  const defaultPartOfDay: PartOfDay = (PARTS_OF_DAY as readonly string[]).includes(part)
+    ? (part as PartOfDay)
+    : inferPartOfDay(new Date().getHours());
+  return {
+    checkins,
+    dateLabel: checkins.length > 0 ? 'Logging' : 'Awaiting first check-in',
+    defaultPartOfDay,
+  };
+}
+
 async function fromNative(): Promise<CheckinData | null> {
   try {
     const { invoke } = await import('@tauri-apps/api/core');
-    const checkins = await invoke<Mood[]>('get_checkin');
-    const params = new URLSearchParams(window.location.search);
-    const part = params.get('part') ?? '';
-    const defaultPartOfDay: PartOfDay = (PARTS_OF_DAY as readonly string[]).includes(part)
-      ? (part as PartOfDay)
-      : inferPartOfDay(new Date().getHours());
-    return {
-      checkins,
-      dateLabel: checkins.length > 0 ? 'Logging' : 'Awaiting first check-in',
-      defaultPartOfDay,
-    };
+    return deriveCheckin(await invoke<Mood[]>('get_checkin'));
   } catch {
     return null; // not running under Tauri
   }
+}
+
+async function fromWeb(): Promise<CheckinData | null> {
+  const checkins = await fromWebApi<Mood[]>('/checkin');
+  return checkins ? deriveCheckin(checkins) : null;
 }
 
 function fromFixture(): CheckinData {
@@ -41,7 +52,7 @@ function fromFixture(): CheckinData {
 }
 
 export async function loadCheckin(): Promise<CheckinData> {
-  return (await fromNative()) ?? fromFixture();
+  return (await fromNative()) ?? (await fromWeb()) ?? fromFixture();
 }
 
 // Persist a validated check-in (writes a Mood row, which the Timeline also

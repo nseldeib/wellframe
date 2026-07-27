@@ -6,6 +6,7 @@
 
 import type { DashboardData } from './models';
 import { FIXTURES, type ScenarioName } from './fixtures';
+import { fromWebApi } from '../webApi';
 
 async function fromNative(): Promise<DashboardData | null> {
   try {
@@ -16,6 +17,12 @@ async function fromNative(): Promise<DashboardData | null> {
   }
 }
 
+// Served by the mcpb web server: read real local data over the JSON API. The
+// payload is already the DashboardData shape (no derivation needed).
+function fromWeb(): Promise<DashboardData | null> {
+  return fromWebApi<DashboardData>('/dashboard');
+}
+
 function fromFixture(): DashboardData {
   const params = new URLSearchParams(window.location.search);
   const requested = params.get('s') as ScenarioName | null;
@@ -24,6 +31,5 @@ function fromFixture(): DashboardData {
 }
 
 export async function loadDashboard(): Promise<DashboardData> {
-  const native = await fromNative();
-  return native ?? fromFixture();
+  return (await fromNative()) ?? (await fromWeb()) ?? fromFixture();
 }
